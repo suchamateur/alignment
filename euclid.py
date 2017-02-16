@@ -545,7 +545,34 @@ class Vector3:
         return Vector3(self.x - d * normal.x,
                        self.y - d * normal.y,
                        self.z - d * normal.z)
-
+    def rotate_by_z(self, angle, cw):
+        cur_angle = math.atan2(self.y, self.x) 
+        if cw:
+            #clockwise
+            cur_angle += angle
+        else:
+            cur_angle -= angle
+        mod = math.sqrt(self.x*self.x + self.y*self.y)
+        self.x = mod*math.cos(cur_angle)
+        self.y = mod*math.sin(cur_angle)
+    
+    def rotate_by_axis(self, axis, angle):
+        axis.normialize()
+        s = math.sin(angle)
+        c = math.cos(angle)
+        v = 1 - c
+        t = [[self.x*self.x*v + c, self.y*self.x*v - self.z*s, self.z*self.x*v + self.y*s],
+             [self.x*self.y*v + self.z*s, self.y*self.y*v + c, self.y*self.z*v - self.x*s],
+             [self.x*self.z*v - self.y*s, self.y*self.z*v + self.x*s, self.z*self.z*v + c]]
+        m = Vector3(t[0][0]*self.x + t[0][1]*self.y + t[0][2]*self.z,
+                    t[1][0]*self.x + t[1][1]*self.y + t[1][2]*self.z,
+                    t[2][0]*self.x + t[2][1]*self.y + t[2][2]*self.z)
+        self.x = m[0]
+        self.y = m[1]
+        self.z = m[2]
+        
+    def mod(self):
+        return math.sqrt(self.x*self.x + self.y*self.y + self.z*self.z)
 # a b c 
 # e f g 
 # i j k 

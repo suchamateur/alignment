@@ -7,6 +7,7 @@ from ponycube import *
 from struct import *
 import sys
 from time import sleep
+from math import atan2
 
 GYRO_ON = 1
 CAMERA_ON = 1
@@ -23,10 +24,13 @@ DELTA_Y = 0.0
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 
-FOCAL_LENGTH = 630*3.138;
+FOCAL_LENGTH = 630*100#630*3.138;
 
 SPANX = 200
 SPANY = 200
+
+FX = 640.0
+FY = 640.0
 
 counter = 0
 
@@ -36,8 +40,16 @@ class ir_marker:
         #self.pts = [Vector3(-1.85,-2.225,0),Vector3(1.85, -2.225,0),Vector3(1.85,2.225,0),Vector3(-1.85,2.225,0)]
         
         # 90 deg extension
+        #unit in dm
         self.pts = [Vector3(-2.305, 1.915, 0), Vector3(-2.305, -1.915, 0), Vector3(2.305, -1.915, 0), Vector3(2.305, 1.915, 0), Vector3(2.245, 3.605, 0), Vector3(2.245, 4.785, 0)]
         self.axis = [Vector3(1,0,0),Vector3(0,1,0),Vector3(0,0,1)]
+        
+    # for PAG detector, re-calculate coordinates by extension angle
+    def adjust_ext(self, a):
+        self.origin()
+        rot_cen = Vector3(2.245, 2.285, 0)
+        self.pts[4] = Vector3(rot_cen[0] + 1.32*cos(a), rot_cen[1] + 1.32*sin(a), 0)
+        self.pts[5] = Vector3(rot_cen[0] + 2.5*cos(a), rot_cen[1] + 2.5*sin(a), 0)
         
     def origin(self):
         #self.pts = [Vector3(-2.035,-2.325,0), Vector3(1.925,-2.3,0), Vector3(2.05,1.77,0), Vector3(-1.71,2.04,0), Vector3(-2.32,-2.3,0), Vector3(2.32,-2.3,0), Vector3(2.32,2.3,0), Vector3(-2.32,2.3,0)]
@@ -54,12 +66,9 @@ class ir_marker:
     def perspective_transform(self):
         pts = self.pts
         for p in pts:
-#             p.z = 0
-#             p.x = p.x*50+IMAGE_WIDTH/2
-#             p.y = p.y*50+IMAGE_HEIGHT/2
             p.z += 1000
-            p.x = 640*p.x/p.z*50+IMAGE_WIDTH/2
-            p.y = IMAGE_HEIGHT/2-640*p.y/p.z*50
+            p.x = FX*p.x/p.z*50+IMAGE_WIDTH/2
+            p.y = IMAGE_HEIGHT/2-FY*p.y/p.z*50
             p.z = 0
         return pts
     
@@ -67,8 +76,8 @@ class ir_marker:
         axis = self.axis
         for p in axis:
             p.z += 1000
-            p.x = 640*p.x/p.z*50+IMAGE_WIDTH/2
-            p.y = IMAGE_HEIGHT/2-640*p.y/p.z*50
+            p.x = FX*p.x/p.z*50+IMAGE_WIDTH/2
+            p.y = IMAGE_HEIGHT/2-FY*p.y/p.z*50
         return axis
     
     def flip(self, pts, flag=0):
@@ -811,6 +820,9 @@ if __name__ == '__main__':
     config = ConfigParser.SafeConfigParser()
     config.read('c:\\tmp\\detector_surface.ini')
     
+    extension_angle = config.getfloat('Extension', 'angle')
+    print 'Extension angle set as ', extension_angle, ' deg'
+    
     if CAMERA_ON:    
         if config.getboolean('CameraCalibration', 'Calibrated'):
             print('Camera calibration loaded')
@@ -925,6 +937,7 @@ if __name__ == '__main__':
             
             if GYRO_ON:
                 ir = ir_marker()
+                ir.adjust_ext(extension_angle) #adjust marker coordinates according to extension position/angle
                 q1 = QUAT_TUB
                 q2 = QUAT_DET.__mul__(QUAT_TRANS)
                 qt = q2.conjugated().__mul__(q1).normalize()
@@ -1007,39 +1020,6 @@ if __name__ == '__main__':
                     dist_pts = dist_pts + math.sqrt((ir_pts[1].x-ir_pts[3].x)*(ir_pts[1].x-ir_pts[3].x)+(ir_pts[1].y-ir_pts[3].y)*(ir_pts[1].y-ir_pts[3].y))
                     dist_img = math.sqrt((nx[0]-nx[2])*(nx[0]-nx[2])+(ny[0]-ny[2])*(ny[0]-ny[2]))
                     dist_img = dist_img + math.sqrt((nx[1]-nx[3])*(nx[1]-nx[3])+(ny[1]-ny[3])*(ny[1]-ny[3]))
-#                     angles = [0,0,0,0]
-#                     cenx = 0
-#                     ceny = 0
-#                     for i in range(0,4):
-#                         cenx += ir_pts[i].x
-#                         ceny += ir_pts[i].y
-#                     for i in range(0,4):
-#                         dx = ir_pts[i].x-cenx
-#                         dy = ir_pts[i].y-ceny
-#                         angles[i] = math.atan2(dy, dx)
-#                         if angles[i]<0:
-#                             angles[i] = angles[i]+2*math.pi
-#                     pts_index = select_sort([i for i in range(0,4)], angles)
-#                     vertex_x = [0,0,0,0]
-#                     vertex_y = [0,0,0,0]
-#                     for i in range(0,4):
-#                         px = ir_pts[pts_index[i]].x-cenx
-#                         py = ir_pts[pts_index[i]].y-ceny
-#                         dist1 = math.sqrt(px*px+py*py)
-#                         px = ir_pts[pts_index[i]+4].x-cenx
-#                         py = ir_pts[pts_index[i]+4].y-ceny
-#                         dist_ratio = math.sqrt(px*px+py*py)/dist1
-#                          
-#                         dnx = nx[i]-DELTA_X
-#                         dny = ny[i]-DELTA_Y
-#                         dn_mod = math.sqrt(dnx*dnx+dny*dny)
-#                         dnx/=dn_mod
-#                         dny/=dn_mod
-#                          
-#                         vertex_x[i] = dnx*dn_mod*dist_ratio+DELTA_X
-#                         vertex_y[i] = dny*dn_mod*dist_ratio+DELTA_Y
-#                     for i in range(0,4):
-#                         cv2.line(frame,(int(vertex_x[i]),int(vertex_y[i])),(int(vertex_x[(i+1)%4]),int(vertex_y[(i+1)%4])),(0,255,0),1)
                     
                 else:
                     #roughly decide distance between detector and tube
@@ -1142,68 +1122,7 @@ if __name__ == '__main__':
                     else:
                         p1 = pnt_indices[min_angle_index][0]
                         p2 = pnt_indices[min_angle_index][1]
-                    dist_pts = math.sqrt((ir_pts[p1].x-ir_pts[p2].x)*(ir_pts[p1].x-ir_pts[p2].x)+(ir_pts[p1].y-ir_pts[p2].y)*(ir_pts[p1].y-ir_pts[p2].y))
-                    #draw detector
-#                     cenx = (ir_pts[p1].x+ir_pts[p2].x)/2
-#                     ceny = (ir_pts[p1].y+ir_pts[p2].y)/2
-#                     index = pnt_indices[min_angle_index]
-#                     angles = [0,0,0]
-#                     for i in range(0,3):
-#                         dx = ir_pts[index[i]].x-cenx
-#                         dy = ir_pts[index[i]].y-ceny
-#                         angles[i] = math.atan2(dy, dx)
-#                         if angles[i]<0:
-#                             angles[i] += math.pi*2
-#                     new_index = select_sort(index, angles)
-#                     vertex_x = [0,0,0]
-#                     vertex_y = [0,0,0]
-#                     ratio = 0
-#                     for i in range(0,3):
-#                         px = ir_pts[new_index[i]].x-cenx
-#                         py = ir_pts[new_index[i]].y-ceny
-#                         dist1 = math.sqrt(px*px+py*py)
-#                         px = ir_pts[new_index[i]+4].x-cenx
-#                         py = ir_pts[new_index[i]+4].y-ceny
-#                         dist_ratio = math.sqrt(px*px+py*py)/dist1
-#                          
-#                         dnx = nx[i]-DELTA_X
-#                         dny = ny[i]-DELTA_Y
-#                         dn_mod = math.sqrt(dnx*dnx+dny*dny)
-#                         dnx/=dn_mod
-#                         dny/=dn_mod
-#                          
-#                         vertex_x[i] = dnx*dn_mod*dist_ratio+DELTA_X
-#                         vertex_y[i] = dny*dn_mod*dist_ratio+DELTA_Y
-#                         
-#                         ratio += (nx[i]-DELTA_X)/(ir_pts[new_index[i]].x-cenx)
-#                     ratio /= 3
-#                     p4 = 0
-#                     if min_angle_index==0:
-#                         p4 = 3
-#                     elif min_angle_index==1:
-#                         p4 = 2
-#                     elif min_angle_index==2:
-#                         p4 = 1
-#                     else:
-#                         p4 = 0
-#                     dx = ir_pts[p4+4].x-cenx
-#                     dy = ir_pts[p4+4].y-ceny
-#                     d_mod = math.sqrt(dx*dx+dy*dy)
-#                     dx/=d_mod
-#                     dy/=d_mod
-#                     d_mod *= ratio
-#                     nx.append(dx*d_mod+DELTA_X)
-#                     ny.append(dy*d_mod+DELTA_Y)
-#                     angles = [0,0,0,0]
-#                     for i in range(0,4):
-#                         dx = nx[i]-DELTA_X
-#                         dy = ny[i]-DELTA_Y
-#                         angles[i] = math.atan2(dy,dx)
-#                         if angles[i]<0:
-#                             angles[i]+=math.pi*2
-#                     n_index = select_sort([i for i in range(0,4)], angles)
-#                     for i in range(0,4):                   
-#                         cv2.line(frame,(int(nx[n_index[i]]),int(ny[n_index[i]])),(int(nx[n_index[(i+1)%4]]),int(ny[n_index[(i+1)%4]])),(0,255,0),1)
+                    dist_pts = math.sqrt((ir_pts[p1].x-ir_pts[p2].x)*(ir_pts[p1].x-ir_pts[p2].x)+(ir_pts[p1].y-ir_pts[p2].y)*(ir_pts[p1].y-ir_pts[p2].y))                    
                    
                 else:
                     maker = ir_marker()
@@ -1211,7 +1130,7 @@ if __name__ == '__main__':
                     dist_pts = math.sqrt((maker_pts[0].x-maker_pts[2].x)*(maker_pts[0].x-maker_pts[2].x)+(maker_pts[0].y-maker_pts[2].y)*(maker_pts[0].y-maker_pts[2].y)) 
                     dist_pts = dist_pts + math.sqrt((maker_pts[1].x-maker_pts[3].x)*(maker_pts[1].x-maker_pts[3].x)+(maker_pts[1].y-maker_pts[3].y)*(maker_pts[1].y-maker_pts[3].y))
                     dist_pts /= 2
-
+                
                 dist_det2tub = dist_pts/dist_img*FOCAL_LENGTH                                                
                          
             elif con_num ==2:
@@ -1228,96 +1147,103 @@ if __name__ == '__main__':
                     x[ptr] = cx
                     y[ptr] = cy
                     ptr = ptr+1
-                #special for super b demo video, 2015/9/13
-                #extension 90 deg, point 1 higher than point 0
-                #screened 2017/01/19
-#                 if y[1]<y[0]:
-#                     tmp = x[1]
-#                     x[1] = x[0]
-#                     x[0] = tmp
-#                     tmp = y[1]
-#                     y[1] = y[0]
-#                     y[0] = tmp
-#                 dx = x[1]-x[0]
-#                 dy = y[1]-y[0]
-#                 #print('x1,y1',x[1],y[1])
-#                 #print('x0,y0',x[0],y[0])
-#                 arc_len = math.sqrt(dx*dx+dy*dy)
-#                 dx /= arc_len
-#                 dy /= arc_len
-#                 #print(dx, dy, arc_len)
-#                 coor_list = [0,0,0,0,0,0,0,0]
-#                 coor_list[0] = x[1]+arc_len/120*100*dx+arc_len/120*50*dy
-#                 coor_list[1] = y[1]+arc_len/120*100*dy-arc_len/120*50*dx
-#                 coor_list[2] = coor_list[0]+arc_len/120*370*dy
-#                 coor_list[3] = coor_list[1]-arc_len/120*370*dx
-#                 coor_list[4] = coor_list[0]+arc_len/120*445*dx
-#                 coor_list[5] = coor_list[1]+arc_len/120*445*dy
-#                 coor_list[6] = coor_list[2]+arc_len/120*445*dx
-#                 coor_list[7] = coor_list[3]+arc_len/120*445*dy                 
-
-                #screened 2017/01/19
-#                 cen_x = 0
-#                 cen_y = 0
-#                 for i in range(0,4):
-#                     draw_cross(frame, coor_list[i*2], coor_list[i*2+1], (255,0,0))
-#                     cen_x += coor_list[i*2]
-#                     cen_y += coor_list[i*2+1]
-#                     #print('x,y',i,coor_list[i*2],coor_list[i*2+1])
-#                 DELTA_X = cen_x/4
-#                 DELTA_Y = cen_y/4
-#                 #print(DELTA_X,DELTA_Y)
-#                 draw_cross(frame, DELTA_X, DELTA_Y, (0,255,255))
-#                 
-#                 dist_img = math.sqrt((x[1]-x[0])*(x[1]-x[0])+(y[1]-y[0])*(y[1]-y[0]))
+                
                 cv2.circle(frame,(int(ir_pts[4][0]),int(ir_pts[4][1])),6,(0,255,255))
                 cv2.circle(frame,(int(ir_pts[5][0]),int(ir_pts[5][1])),6,(0,255,255))
                 if GYRO_ON:
-                    dist_pts = 1.2
-                    if abs(x[0] - x[1]) > abs(y[0] - y[1]):
-                        # use x to determine which ir is which
-                        if (x[0] - x[1]) * (ir_pts[4][0] - ir_pts[5][0]) < 0:
-                            #switch
-                            id1 = Vector2(x[1], y[1]) # down ir
-                            id2 = Vector2(x[0], y[0])
-                        else:
-                            id1 = Vector2(x[0], y[0])
-                            id2 = Vector2(x[1], y[1])
-                    else:
-                        # use y to determine which ir is which
-                        if (y[0] - y[1]) * (ir_pts[4][1] - ir_pts[5][1]) > 0:
-                            #switch
-                            id1 = Vector2(x[1], y[1]) # down ir
-                            id2 = Vector2(x[0], y[0])
-                        else:
-                            id1 = Vector2(x[0], y[0])
-                            id2 = Vector2(x[1], y[1])
-                                  
+                    dist_pts = 1.18
+                    # ir_pts[4] - marker 2, ir_pts[5] - marker 1
+#                     if abs(x[0] - x[1]) > abs(y[0] - y[1]):
+#                         # use x to determine which ir is which
+#                         if (x[0] - x[1]) * (ir_pts[4][0] - ir_pts[5][0]) < 0:
+#                             #switch
+#                             id2 = Vector3(x[1], y[1], 0) 
+#                             id1 = Vector3(x[0], y[0], 0)
+#                         else:
+#                             id2 = Vector3(x[0], y[0], 0)
+#                             id1 = Vector3(x[1], y[1], 0)
+#                     else:
+#                         # use y to determine which ir is which
+#                         if (y[0] - y[1]) * (ir_pts[4][1] - ir_pts[5][1]) < 0:
+#                             #switch
+#                             id2 = Vector3(x[1], y[1], 0) 
+#                             id1 = Vector3(x[0], y[0], 0)
+#                         else:
+#                             id2 = Vector3(x[0], y[0], 0)
+#                             id1 = Vector3(x[1], y[1], 0)                                  
                         
-                    vx = id2 - id1
-                    vx.normalize()
-                    vy = Vector2(vx[1], -vx[0])
-                    dx = x[1]-x[0]
-                    dy = y[1]-y[0]
-                    arc_len = math.sqrt(dx*dx+dy*dy)
-                    s = arc_len / 118.0;
-                    det_pts = []
-                    det_pts.append(id1 + vx*s*169 + vy*s*6)
-                    det_pts.append(det_pts[0] + vx*s*383)
-                    det_pts.append(det_pts[1] - vy*s*461)
-                    det_pts.append(det_pts[2] - vx*s*383)
+                    id1 = Vector3(x[0], y[0], 0)#point captured in image
+                    id2 = Vector3(x[1], y[1], 0)
+                    img_vec = id2 - id1
+                    arc_len = img_vec.mod();
+                    img_vec.normalize()
+                    pnt_vec = ir_pts[4] - ir_pts[5]
+                    pnt_vec.normalize()  
+                    #print 'img= ', img_vec, ' pnt= ', pnt_vec
+                    rot_angle = acos(img_vec.dot(pnt_vec))
+                    
+                    if rot_angle > math.pi/2:
+                        tmp_id = id1
+                        id1 = id2
+                        id2 = tmp_id
+                        img_vec = -img_vec
+                        rot_angle = math.pi - rot_angle
+                    print 'angle= ', rot_angle / math.pi * 180   
+                    rot_axis = pnt_vec.cross(img_vec) 
+                    rot_axis.normalize()            
+                    m_pts = ir_pts;
+                    print 'original=', m_pts
+                    
+                    #scale
+                    scale = arc_len / (m_pts[4] - m_pts[5]).mod()
+                    #print 'scale=', scale
+                    for i in range(0, len(m_pts)):
+                        m_pts[i] *= scale;
+                    #print 'scale=', m_pts
+                    #rotate
+                    print 'rot axis=', rot_axis
+                    for i in range(0, len(m_pts)):
+                        #m_pts[i].rotate_by_axis(rot_axis, rot_angle)
+                        if rot_axis[2] > 0:
+                            m_pts[i].rotate_by_z(rot_angle, True)
+                        else:
+                            m_pts[i].rotate_by_z(rot_angle, False)
+                    print 'rotate=', m_pts
+                    #translate
+                    trans = id1 - m_pts[5]
+                    for i in range(0, len(m_pts)):
+                        m_pts[i] += trans
+                    print 'translate=', m_pts
                     cen_x = 0
                     cen_y = 0
                     for i in range(0, 4):
-                        draw_cross(frame, det_pts[i][0], det_pts[i][1], (0, 0, 255))
-                        cen_x += det_pts[i][0]
-                        cen_y += det_pts[i][1]
+                        draw_cross(frame, m_pts[i][0], m_pts[i][1], (0, 0, 255))
+                        cen_x += m_pts[i][0]
+                        cen_y += m_pts[i][1]
+#                     img_x = id2 - id1
+#                     vx.normalize()
+#                     vy = Vector2(vx[1], -vx[0])
+#                     dx = x[1]-x[0]
+#                     dy = y[1]-y[0]
+#                     arc_len = math.sqrt(dx*dx+dy*dy)
+#                     s = arc_len / 118.0;
+#                     det_pts = []
+#                     det_pts.append(id1 + vx*s*169 + vy*s*6)
+#                     det_pts.append(det_pts[0] + vx*s*383)
+#                     det_pts.append(det_pts[1] - vy*s*461)
+#                     det_pts.append(det_pts[2] - vx*s*383)
+#                     cen_x = 0
+#                     cen_y = 0
+#                     for i in range(0, 4):
+#                         draw_cross(frame, det_pts[i][0], det_pts[i][1], (0, 0, 255))
+#                         cen_x += det_pts[i][0]
+#                         cen_y += det_pts[i][1]
+                    
                     DELTA_X = cen_x / 4
                     DELTA_Y = cen_y / 4
                     
                     draw_cross(frame, DELTA_X, DELTA_Y, (0,255,255))
-                    dist_img = arc_len
-                    
+                    dist_img = arc_len                   
 
                 else:
                     maker = ir_marker()
@@ -1328,6 +1254,8 @@ if __name__ == '__main__':
                         dy = maker_pts[(i+1)%4].y-maker_pts[i].y
                         dist_pts += math.sqrt(dx*dx+dy*dy)
                     dist_pts /= 4
+                    
+                #print dist_pts, dist_img
                 dist_det2tub = dist_pts/dist_img*FOCAL_LENGTH  
                     
             else:
