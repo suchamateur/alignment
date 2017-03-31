@@ -18,13 +18,16 @@ COMPORT2 = 9 #sensor 3, on tube
 QUAT_DET = None
 QUAT_TUB = None
 QUAT_TRANS = Quaternion(1,0,0,0)
+TRANS_H = 0.0
+TRANS_A = 0.0
+TRANS_B = 0.0
 DELTA_X = 0.0
 DELTA_Y = 0.0
 
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 
-FOCAL_LENGTH = 630*100#630*3.138;
+FOCAL_LENGTH = 60240#630*3.138;
 
 SPANX = 200
 SPANY = 200
@@ -244,8 +247,18 @@ def draw_cross(img, x, y, color=(0,255,0)):
     xi = int(x)
     yi = int(y)
     cv2.line(img, (xi-5,yi), (xi+5,yi), color, 1)
-    cv2.line(img, (xi,yi-5), (xi,yi+5), color, 1)
+    cv2.line(img, (xi,yi-5), (xi,yi+5), color, 1)  
     
+def draw_arrow(img, x, y, dx, dy, color=(0,255,0)):
+    xi = int(x)
+    yi = int(y)
+    mod = math.sqrt(dx*dx + dy*dy);
+    dx /= mod;
+    dy /= mod;
+    cv2.line(img, (xi, yi), (int(xi+dx*20), int(yi+dy*20)), color, 1)
+    cv2.line(img, (int(xi+dx*20), int(yi+dy*20)), (int(xi+dx*15+dy*5), int(yi+dy*15-dx*5)), color, 1)
+    cv2.line(img, (int(xi+dx*20), int(yi+dy*20)), (int(xi+dx*15-dy*5), int(yi+dy*15+dx*5)), color, 1) 
+
 def align_array_by_min(array):
     s = len(array)
     min_value = array[0]
@@ -546,54 +559,29 @@ class data_packet (object):
                     sss = 'accel, %7.3f, %7.3f, %7.3f' % \
                           (self.data[0], self.data[1], self.data[2])
                     print (sss)
-                
-                    count=count +1
-                    count_type= count_type+1;
-                    array_a[0]=self.data[0]
-                    array_a[1]=self.data[1]
-                    array_a[2]=self.data[2] 
 
             elif self.type == 1:
                     gyro_d_enable= "Enable"
                     sss = 'gyro: %9.5f %9.5f %9.5f' % \
                           (self.data[0], self.data[1], self.data[2])
                     print (sss)
-                    count=count +1
-                    array_g[0]=self.data[0]
-                    array_g[1]=self.data[1]
-                    array_g[2]=self.data[2] 
                     
             elif self.type == 2:
                     compass_d_enable= "Enable"
                     sss = 'compass: %7.4f %7.4f %7.4f' % \
                           (self.data[0], self.data[1], self.data[2])
-                    print (sss)
-                    count=count +1
-                    array_c[0]=self.data[0]
-                    array_c[1]=self.data[1]
-                    array_c[2]=self.data[2] 
                     
             elif self.type == 3:
                     quat_d_enable= "Enable"
                     sss = 'quat: %7.4f %7.4f %7.4f %7.4f' % \
                           (self.data[0], self.data[1], self.data[2], self.data[3])
                     print (sss)
-                    count=count +1
-                    array_q[0]=self.data[0]
-                    array_q[1]=self.data[1]
-                    array_q[2]=self.data[2]
-                    array_q[3]=self.data[3] 
                     
             elif self.type == 4:
                     euler_d_enable= "Enable"
                     sss = 'euler: %7.4f %7.4f %7.4f' % \
                           (self.data[0], self.data[1], self.data[2])
                     print (sss)
-                    count=count +1
-                    array_e[0]=self.data[0]
-                    array_e[1]=self.data[1]
-                    array_e[2]=self.data[2] 
-
 
             elif self.type == 5:
                     rotmat_d_enable= "Enable"
@@ -602,32 +590,19 @@ class data_packet (object):
                            self.data[4], self.data[5], self.data[6], self.data[7], \
                            self.data[8])
                     print (sss)
-                    count=count +1
-                    array_rm[0]=self.data[0]
-                    array_rm[1]=self.data[1]
-                    array_rm[2]=self.data[2]
-                    array_rm[3]=self.data[3]
-                    array_rm[4]=self.data[4]
-                    array_rm[5]=self.data[5]
-                    array_rm[6]=self.data[6]
-                    array_rm[7]=self.data[7]
-                    array_rm[8]=self.data[8]
-                    
+                   
 
             elif self.type == 6:
                     heading_d_enable= "Enable"
                     sss = 'heading: %7.4f' % self.data[0]
                     print (sss)
-                    count=count +1
-                    array_h[0]=self.data[0]
-                    
+               
                 
             elif self.type == 7:
                     exter_sensor_d_enable= "Enable"
                     print ('Sensors (Pressure, Humidity, Temperature, Light, UV):\n %.2f %.2f %.2f %.2f %.2f' % \
                            (array_es[0], array_es[1], array_es[2],array_es[3],array_es[4]))
                             #(self.data[0], self.data[1], self.data[2],self.data[3],self.data[4]))
-                    count=count +1
                     
                     #if (log_es ==True):
                         #if(log_external_sensors  == True): #UV, TEMP, Pressure, Light, humidity in one file
@@ -640,35 +615,35 @@ class data_packet (object):
             else:
                 print ('what?')
                 
-            if (log ==True):                
-       
-                if(count >= set_total_1 and set_total_1>0):
-                    count=0
-                    l.extend([millis])
-                    if(log_accel ==True):
-                        l.extend([array_a[0],array_a[1],array_a[2]])
-
-                    if(log_gyro ==True):
-                        l.extend([array_g[0],array_g[1],array_g[2]])
-
-                    if(log_compass ==True):
-                        l.extend([array_c[0],array_c[1],array_c[2]])
-
-                    if(log_eular ==True):
-                        l.extend([array_e[0],array_e[1],array_e[2]])
-
-                    if(log_quat ==True):
-                        l.extend([array_q[0],array_q[1],array_q[2],array_q[3]])
-                        
-
-                    if(log_rotmatrix ==True):
-                        l.extend([array_rm[0],array_rm[1],array_rm[2],array_rm[3],array_rm[4],array_rm[5],array_rm[6],array_rm[7],array_rm[8]])
-                        
-
-                    if(log_heading ==True):
-                        l.extend([array_h[0]])
-                    f_file.writerow(list(l))
-                    del l[:]
+#             if (log ==True):                
+#        
+#                 if(count >= set_total_1 and set_total_1>0):
+#                     count=0
+#                     l.extend([millis])
+#                     if(log_accel ==True):
+#                         l.extend([array_a[0],array_a[1],array_a[2]])
+# 
+#                     if(log_gyro ==True):
+#                         l.extend([array_g[0],array_g[1],array_g[2]])
+# 
+#                     if(log_compass ==True):
+#                         l.extend([array_c[0],array_c[1],array_c[2]])
+# 
+#                     if(log_eular ==True):
+#                         l.extend([array_e[0],array_e[1],array_e[2]])
+# 
+#                     if(log_quat ==True):
+#                         l.extend([array_q[0],array_q[1],array_q[2],array_q[3]])
+#                         
+# 
+#                     if(log_rotmatrix ==True):
+#                         l.extend([array_rm[0],array_rm[1],array_rm[2],array_rm[3],array_rm[4],array_rm[5],array_rm[6],array_rm[7],array_rm[8]])
+#                         
+# 
+#                     if(log_heading ==True):
+#                         l.extend([array_h[0]])
+#                     f_file.writerow(list(l))
+#                     del l[:]
 
       
           
@@ -768,7 +743,8 @@ class cube_viewer (packet_delegate):
         packet2 = self.latest2
         if packet1:
             #print('draw')
-            q = packet1.to_q().normalized()
+            #q = packet1.to_q().normalized()
+            q = packet1.to_q()
             global QUAT_DET
             QUAT_DET = q
             q = QUAT_DET.__mul__(QUAT_TRANS)            
@@ -777,7 +753,8 @@ class cube_viewer (packet_delegate):
             pygame.display.flip()
             self.latest1 = None
         if packet2:
-            q = packet2.to_q().normalized()
+            #q = packet2.to_q().normalized()
+            q = packet2.to_q()
             global QUAT_TUB
             QUAT_TUB = q
             #q = QUAT_TUB.__mul__(QUAT_TRANS)            	
@@ -860,6 +837,9 @@ if __name__ == '__main__':
             QUAT_TRANS.z = config.getfloat('GyroCalibration','z')
             QUAT_TRANS.normalize()
             print(QUAT_TRANS)
+            TRANS_H = config.getfloat('GyroCalibration', 'heading')
+            TRANS_A = config.getfloat('GyroCalibration', 'attitude')
+            TRANS_B = config.getfloat('GyroCalibration', 'bank')
         else:
             print('Gryo calibration required')
             cal_viewer = cube_viewer()
@@ -876,13 +856,21 @@ if __name__ == '__main__':
                 pygame.time.delay(0)
     
                 if QUAT_DET and QUAT_TUB :
-                    trans = QUAT_DET.conjugated().__mul__(QUAT_TUB).normalize()
+                    #trans = QUAT_DET.conjugated().__mul__(QUAT_TUB).normalize()
+                    #trans = QUAT_TUB.__mul__(QUAT_DET.conjugated())
+                    #trans = QUAT_DET.conjugated().rotate_quaternion(QUAT_TUB).normalize()
+                    trans = QUAT_TUB.rotate_quaternion(QUAT_DET.conjugated()).normalize()
+                    heading, attitude, bank = trans.get_euler()
+
                     if config.has_section('GyroCalibration'):
                         print('update gyro calibration results')                	
                         config.set('GyroCalibration', 'w', '%f'%trans.w)
                         config.set('GyroCalibration', 'x', '%f'%trans.x)
                         config.set('GyroCalibration', 'y', '%f'%trans.y)
                         config.set('GyroCalibration', 'z', '%f'%trans.z)
+                        config.set('GyroCalibration', 'heading', '%f'%heading)
+                        config.set('GyroCalibration', 'attitude', '%f'%attitude)
+                        config.set('GyroCalibration', 'bank', '%f'%bank)
                         config.set('GyroCalibration', 'calibrated', 'true')
                         print(QUAT_DET)
                         print(QUAT_TUB)
@@ -937,10 +925,24 @@ if __name__ == '__main__':
             
             if GYRO_ON:
                 ir = ir_marker()
-                ir.adjust_ext(extension_angle) #adjust marker coordinates according to extension position/angle
+                ir.adjust_ext(extension_angle/180.0*math.pi) #adjust marker coordinates according to extension position/angle
                 q1 = QUAT_TUB
-                q2 = QUAT_DET.__mul__(QUAT_TRANS)
-                qt = q2.conjugated().__mul__(q1).normalize()
+                #q2 = QUAT_DET.__mul__(QUAT_TRANS)
+                #q2 = QUAT_TRANS.__mul__(QUAT_DET)
+                #t2 = QUAT_DET.conjugated().rotate_quaternion(QUAT_TUB)
+                #t1 = QUAT_TRANS.conjugated().rotate_quaternion(t2)
+                #q2 = QUAT_TUB.rotate_quaternion(t1.conjugated())
+                #q2 = QUAT_DET.rotate_quaternion(QUAT_TRANS)
+                #q2 = QUAT_TRANS.rotate_quaternion(QUAT_DET)
+                q2 = Quaternion()
+                q2.w = QUAT_DET.w
+                q2.x = QUAT_DET.x
+                q2.y = QUAT_DET.y
+                q2.z = QUAT_DET.z
+                q2.rotate_euler(TRANS_H, TRANS_A, TRANS_B)
+                #qt = q2.conjugated().__mul__(q1).normalize()
+                qt = q1.__mul__(q2.conjugated())
+                #print q1, q2
                 ir.rotate(qt)
                 ir_pts = ir.perspective_transform()
                 #draw rot axis
@@ -950,6 +952,25 @@ if __name__ == '__main__':
                 cv2.line(frame, (IMAGE_WIDTH/2+ox,IMAGE_HEIGHT/2+oy),(int(rot_axis[0].x)+ox,int(rot_axis[0].y)+oy),(0,0,255))#x, red
                 cv2.line(frame, (IMAGE_WIDTH/2+ox,IMAGE_HEIGHT/2+oy),(int(rot_axis[1].x)+ox,int(rot_axis[1].y)+oy),(0,255,0))#y, green
                 cv2.line(frame, (IMAGE_WIDTH/2+ox,IMAGE_HEIGHT/2+oy),(int(rot_axis[2].x)+ox,int(rot_axis[2].y)+oy),(255,0,0))#z, blue
+                
+                an_pitch, an_roll, an_yaw = QUAT_TUB.get_euler()
+                cv2.putText(frame, 'tube= %.0f, %.0f, %.0f'%(an_pitch/math.pi*180, an_roll/math.pi*180, an_yaw/math.pi*180), (10, 60), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+                an_pitch, an_roll, an_yaw = QUAT_DET.get_euler()
+                cv2.putText(frame, 'det1= %.0f, %.0f, %.0f'%(an_pitch/math.pi*180, an_roll/math.pi*180, an_yaw/math.pi*180), (10, 80), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+                an_pitch, an_roll, an_yaw = q2.get_euler()
+                cv2.putText(frame, 'det2= %.0f, %.0f, %.0f'%(an_pitch/math.pi*180, an_roll/math.pi*180, an_yaw/math.pi*180), (10, 100), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+                an_pitch, an_roll, an_yaw = QUAT_TRANS.get_euler()
+                cv2.putText(frame, 'tran= %.0f, %.0f, %.0f'%(an_pitch/math.pi*180, an_roll/math.pi*180, an_yaw/math.pi*180), (10, 120), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+#                 
+#                 cv2.putText(frame, 'tube= %.2f, %.2f, %.2f, %.2f'%(QUAT_TUB.w, QUAT_TUB.x, QUAT_TUB.y, QUAT_TUB.z), (10, 60), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+#                 cv2.putText(frame, 'det1= %.2f, %.2f, %.2f, %.2f'%(QUAT_DET.w, QUAT_DET.x, QUAT_DET.y, QUAT_DET.z), (10, 80), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+#                 cv2.putText(frame, 'det2= %.2f, %.2f, %.2f, %.2f'%(q2.w, q2.x, q2.y, q2.z), (10, 100), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+                an_pitch, an_roll, an_yaw = qt.get_euler()
+                #print QUAT_TUB, QUAT_DET, q2
+                #print q1, q2, qt, '%.0f'%(an_pitch/math.pi*180), '%.0f'%(an_roll/math.pi*180), '%.0f'%(an_yaw/math.pi*180)
+                cv2.putText(frame, '%.0f'%(an_pitch/math.pi*180), (IMAGE_WIDTH - 50, 20), font, 0.5, (0,0,255), 1, cv2.LINE_AA)
+                cv2.putText(frame, '%.0f'%(an_yaw/math.pi*180), (IMAGE_WIDTH - 50, 40), font, 0.5, (0,255,0), 1, cv2.LINE_AA)
+                cv2.putText(frame, '%.0f'%(an_roll/math.pi*180), (IMAGE_WIDTH - 50, 60), font, 0.5, (255,0,0), 1, cv2.LINE_AA)
                 
                 #ir_pts = ir.flip(ir_pts, 0)
                 for i in range(0, len(ir_pts)):
@@ -1152,25 +1173,6 @@ if __name__ == '__main__':
                 cv2.circle(frame,(int(ir_pts[5][0]),int(ir_pts[5][1])),6,(0,255,255))
                 if GYRO_ON:
                     dist_pts = 1.18
-                    # ir_pts[4] - marker 2, ir_pts[5] - marker 1
-#                     if abs(x[0] - x[1]) > abs(y[0] - y[1]):
-#                         # use x to determine which ir is which
-#                         if (x[0] - x[1]) * (ir_pts[4][0] - ir_pts[5][0]) < 0:
-#                             #switch
-#                             id2 = Vector3(x[1], y[1], 0) 
-#                             id1 = Vector3(x[0], y[0], 0)
-#                         else:
-#                             id2 = Vector3(x[0], y[0], 0)
-#                             id1 = Vector3(x[1], y[1], 0)
-#                     else:
-#                         # use y to determine which ir is which
-#                         if (y[0] - y[1]) * (ir_pts[4][1] - ir_pts[5][1]) < 0:
-#                             #switch
-#                             id2 = Vector3(x[1], y[1], 0) 
-#                             id1 = Vector3(x[0], y[0], 0)
-#                         else:
-#                             id2 = Vector3(x[0], y[0], 0)
-#                             id1 = Vector3(x[1], y[1], 0)                                  
                         
                     id1 = Vector3(x[0], y[0], 0)#point captured in image
                     id2 = Vector3(x[1], y[1], 0)
@@ -1188,11 +1190,11 @@ if __name__ == '__main__':
                         id2 = tmp_id
                         img_vec = -img_vec
                         rot_angle = math.pi - rot_angle
-                    print 'angle= ', rot_angle / math.pi * 180   
+                    #print 'angle= ', rot_angle / math.pi * 180   
                     rot_axis = pnt_vec.cross(img_vec) 
                     rot_axis.normalize()            
                     m_pts = ir_pts;
-                    print 'original=', m_pts
+                    #print 'original=', m_pts
                     
                     #scale
                     scale = arc_len / (m_pts[4] - m_pts[5]).mod()
@@ -1201,48 +1203,48 @@ if __name__ == '__main__':
                         m_pts[i] *= scale;
                     #print 'scale=', m_pts
                     #rotate
-                    print 'rot axis=', rot_axis
+                    #print 'rot axis=', rot_axis
                     for i in range(0, len(m_pts)):
                         #m_pts[i].rotate_by_axis(rot_axis, rot_angle)
                         if rot_axis[2] > 0:
                             m_pts[i].rotate_by_z(rot_angle, True)
                         else:
                             m_pts[i].rotate_by_z(rot_angle, False)
-                    print 'rotate=', m_pts
+                    #print 'rotate=', m_pts
                     #translate
                     trans = id1 - m_pts[5]
                     for i in range(0, len(m_pts)):
                         m_pts[i] += trans
-                    print 'translate=', m_pts
+                    #print 'translate=', m_pts
                     cen_x = 0
                     cen_y = 0
                     for i in range(0, 4):
-                        draw_cross(frame, m_pts[i][0], m_pts[i][1], (0, 0, 255))
+                        draw_cross(frame, m_pts[i][0], m_pts[i][1], (0, 255, 255))
                         cen_x += m_pts[i][0]
                         cen_y += m_pts[i][1]
-#                     img_x = id2 - id1
-#                     vx.normalize()
-#                     vy = Vector2(vx[1], -vx[0])
-#                     dx = x[1]-x[0]
-#                     dy = y[1]-y[0]
-#                     arc_len = math.sqrt(dx*dx+dy*dy)
-#                     s = arc_len / 118.0;
-#                     det_pts = []
-#                     det_pts.append(id1 + vx*s*169 + vy*s*6)
-#                     det_pts.append(det_pts[0] + vx*s*383)
-#                     det_pts.append(det_pts[1] - vy*s*461)
-#                     det_pts.append(det_pts[2] - vx*s*383)
-#                     cen_x = 0
-#                     cen_y = 0
-#                     for i in range(0, 4):
-#                         draw_cross(frame, det_pts[i][0], det_pts[i][1], (0, 0, 255))
-#                         cen_x += det_pts[i][0]
-#                         cen_y += det_pts[i][1]
                     
                     DELTA_X = cen_x / 4
                     DELTA_Y = cen_y / 4
                     
                     draw_cross(frame, DELTA_X, DELTA_Y, (0,255,255))
+                    cv2.putText(frame, '(%.0f, %.0f)'%((DELTA_X-320)/arc_len*118, (DELTA_Y-240)/arc_len*118), (int(DELTA_X + 10), int(DELTA_Y)), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+#                     if math.fabs(DELTA_X - 320) > 10:
+#                         if DELTA_X > 320:
+#                             draw_arrow(frame, DELTA_X + 6, DELTA_Y, 1.0, 0.0, (255,255,255))
+#                             cv2.putText(frame,'%.0f'%((DELTA_X - 320)/arc_len*1180), (int(DELTA_X)+26,int(DELTA_Y)), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+#                         else:
+#                             draw_arrow(frame, DELTA_X - 6, DELTA_Y, -1., 0., (255,255,255))
+#                             cv2.putText(frame,'%.0f'%((320 - DELTA_X)/arc_len*1180), (int(DELTA_X)-26,int(DELTA_Y)), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+#                          
+#                     if math.fabs(DELTA_Y - 240) > 10:
+#                         if DELTA_Y > 240:
+#                             draw_arrow(frame, DELTA_X, DELTA_Y + 6, 0., 1., (255,255,255))
+#                             cv2.putText(frame,'%.0f'%((DELTA_Y - 240)/arc_len*1180), (int(DELTA_X),int(DELTA_Y)+26), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+#                         else:
+#                             draw_arrow(frame, DELTA_X, DELTA_Y + 6, 0., -1., (255,255,255))
+#                             cv2.putText(frame,'%.0f'%((240 - DELTA_Y)/arc_len*1180), (int(DELTA_X),int(DELTA_Y)-26), font, 0.5, (255,255,255), 1, cv2.LINE_AA)        
+                            
+                    
                     dist_img = arc_len                   
 
                 else:

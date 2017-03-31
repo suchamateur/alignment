@@ -1312,6 +1312,24 @@ class Quaternion:
     def rotate_matrix(self, m):
         self *= Quaternion.new_rotate_matrix(m)
         return self
+    
+    def rotate_quaternion(self, m):
+        #left multiply m
+        w1 = m.w
+        x1 = m.x
+        y1 = m.y
+        z1 = m.z
+        w2 = self.w
+        x2 = self.x
+        y2 = self.y
+        z2 = self.z
+        Q = Quaternion()
+        Q.w = w1*w2 - x1*x2 - y1*y2 - z1*z2
+        Q.x = w1*x2 + x1*w2 + y1*z2 - z1*y2
+        Q.y = w1*y2 - x1*z2 + y1*w2 + z1*x2
+        Q.z = w1*z2 + x1*y2 - y1*x2 + z1*w2
+        
+        return Q
 
     def conjugated(self):
         Q = Quaternion()
