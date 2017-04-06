@@ -12,8 +12,8 @@ from math import atan2
 GYRO_ON = 1
 CAMERA_ON = 1
 
-COMPORT1 = 7#2 #sensor 2, on detector
-COMPORT2 = 9 #sensor 3, on tube
+COMPORT1 = 4#2 #sensor 2, on detector
+COMPORT2 = 11 #sensor 3, on tube
 
 QUAT_DET = None
 QUAT_TUB = None
@@ -856,10 +856,10 @@ if __name__ == '__main__':
                 pygame.time.delay(0)
     
                 if QUAT_DET and QUAT_TUB :
-                    #trans = QUAT_DET.conjugated().__mul__(QUAT_TUB).normalize()
+                    trans = QUAT_DET.conjugated().__mul__(QUAT_TUB).normalize()
                     #trans = QUAT_TUB.__mul__(QUAT_DET.conjugated())
                     #trans = QUAT_DET.conjugated().rotate_quaternion(QUAT_TUB).normalize()
-                    trans = QUAT_TUB.rotate_quaternion(QUAT_DET.conjugated()).normalize()
+                    #trans = QUAT_TUB.rotate_quaternion(QUAT_DET.conjugated()).normalize()
                     heading, attitude, bank = trans.get_euler()
 
                     if config.has_section('GyroCalibration'):
@@ -927,20 +927,11 @@ if __name__ == '__main__':
                 ir = ir_marker()
                 ir.adjust_ext(extension_angle/180.0*math.pi) #adjust marker coordinates according to extension position/angle
                 q1 = QUAT_TUB
-                #q2 = QUAT_DET.__mul__(QUAT_TRANS)
-                #q2 = QUAT_TRANS.__mul__(QUAT_DET)
-                #t2 = QUAT_DET.conjugated().rotate_quaternion(QUAT_TUB)
-                #t1 = QUAT_TRANS.conjugated().rotate_quaternion(t2)
-                #q2 = QUAT_TUB.rotate_quaternion(t1.conjugated())
-                #q2 = QUAT_DET.rotate_quaternion(QUAT_TRANS)
-                #q2 = QUAT_TRANS.rotate_quaternion(QUAT_DET)
-                q2 = Quaternion()
-                q2.w = QUAT_DET.w
-                q2.x = QUAT_DET.x
-                q2.y = QUAT_DET.y
-                q2.z = QUAT_DET.z
-                q2.rotate_euler(TRANS_H, TRANS_A, TRANS_B)
-                #qt = q2.conjugated().__mul__(q1).normalize()
+                
+                tq = (QUAT_DET.conjugated().__mul__(QUAT_TUB)).normalize()
+
+                q2 = QUAT_DET.__mul__(QUAT_TRANS)
+
                 qt = q1.__mul__(q2.conjugated())
                 #print q1, q2
                 ir.rotate(qt)
@@ -953,18 +944,19 @@ if __name__ == '__main__':
                 cv2.line(frame, (IMAGE_WIDTH/2+ox,IMAGE_HEIGHT/2+oy),(int(rot_axis[1].x)+ox,int(rot_axis[1].y)+oy),(0,255,0))#y, green
                 cv2.line(frame, (IMAGE_WIDTH/2+ox,IMAGE_HEIGHT/2+oy),(int(rot_axis[2].x)+ox,int(rot_axis[2].y)+oy),(255,0,0))#z, blue
                 
-                an_pitch, an_roll, an_yaw = QUAT_TUB.get_euler()
-                cv2.putText(frame, 'tube= %.0f, %.0f, %.0f'%(an_pitch/math.pi*180, an_roll/math.pi*180, an_yaw/math.pi*180), (10, 60), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
-                an_pitch, an_roll, an_yaw = QUAT_DET.get_euler()
-                cv2.putText(frame, 'det1= %.0f, %.0f, %.0f'%(an_pitch/math.pi*180, an_roll/math.pi*180, an_yaw/math.pi*180), (10, 80), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
-                an_pitch, an_roll, an_yaw = q2.get_euler()
-                cv2.putText(frame, 'det2= %.0f, %.0f, %.0f'%(an_pitch/math.pi*180, an_roll/math.pi*180, an_yaw/math.pi*180), (10, 100), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
-                an_pitch, an_roll, an_yaw = QUAT_TRANS.get_euler()
-                cv2.putText(frame, 'tran= %.0f, %.0f, %.0f'%(an_pitch/math.pi*180, an_roll/math.pi*180, an_yaw/math.pi*180), (10, 120), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+#                 an_pitch, an_roll, an_yaw = QUAT_TUB.get_euler()
+#                 cv2.putText(frame, 'tube= %.0f, %.0f, %.0f'%(an_pitch/math.pi*180, an_roll/math.pi*180, an_yaw/math.pi*180), (10, 60), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+#                 an_pitch, an_roll, an_yaw = QUAT_DET.get_euler()
+#                 cv2.putText(frame, 'det1= %.0f, %.0f, %.0f'%(an_pitch/math.pi*180, an_roll/math.pi*180, an_yaw/math.pi*180), (10, 80), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+#                 an_pitch, an_roll, an_yaw = q2.get_euler()
+#                 cv2.putText(frame, 'det2= %.0f, %.0f, %.0f'%(an_pitch/math.pi*180, an_roll/math.pi*180, an_yaw/math.pi*180), (10, 100), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+#                 an_pitch, an_roll, an_yaw = QUAT_TRANS.get_euler()
+#                 cv2.putText(frame, 'tran= %.0f, %.0f, %.0f'%(an_pitch/math.pi*180, an_roll/math.pi*180, an_yaw/math.pi*180), (10, 120), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
 #                 
-#                 cv2.putText(frame, 'tube= %.2f, %.2f, %.2f, %.2f'%(QUAT_TUB.w, QUAT_TUB.x, QUAT_TUB.y, QUAT_TUB.z), (10, 60), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
-#                 cv2.putText(frame, 'det1= %.2f, %.2f, %.2f, %.2f'%(QUAT_DET.w, QUAT_DET.x, QUAT_DET.y, QUAT_DET.z), (10, 80), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
-#                 cv2.putText(frame, 'det2= %.2f, %.2f, %.2f, %.2f'%(q2.w, q2.x, q2.y, q2.z), (10, 100), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+                cv2.putText(frame, 'tube = %.2f, %.2f, %.2f, %.2f'%(QUAT_TUB.w, QUAT_TUB.x, QUAT_TUB.y, QUAT_TUB.z), (10, 60), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+                cv2.putText(frame, 'det o= %.2f, %.2f, %.2f, %.2f'%(QUAT_DET.w, QUAT_DET.x, QUAT_DET.y, QUAT_DET.z), (10, 80), font, 0.5, (255,255,255), 1, cv2.LINE_AA)                
+                cv2.putText(frame, 'det n= %.2f, %.2f, %.2f, %.2f'%(q2.w, q2.x, q2.y, q2.z), (10, 100), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
+                cv2.putText(frame, 'trans= %.2f, %.2f, %.2f, %.2f'%(tq.w, tq.x, tq.y, tq.z), (10, 120), font, 0.5, (255,255,255), 1, cv2.LINE_AA)
                 an_pitch, an_roll, an_yaw = qt.get_euler()
                 #print QUAT_TUB, QUAT_DET, q2
                 #print q1, q2, qt, '%.0f'%(an_pitch/math.pi*180), '%.0f'%(an_roll/math.pi*180), '%.0f'%(an_yaw/math.pi*180)
